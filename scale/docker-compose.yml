@@ -1,0 +1,27 @@
+version: "3.7"
+services:
+  pointing_poker:
+    image: pointing_poker:latest
+    restart: always
+    environment:
+      SECRET_KEY_BASE: xpxxkkIHCWlEskjNy02KxBXXVMGoOaYvf79c1wfjw9MX1mmDYK/okrN5xsk2Q4ZJ
+      HOST: localhost
+      PORT: 4000
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.pointing_poker.rule=Host(`localhost`)"
+      - "traefik.wss.routers.pointing_poker.rule=Host(`localhost`)"
+      - "traefik.http.services.pointing_poker.loadbalancer.server.port=4000"
+      - "traefik.http.services.pointing_poker.loadbalancer.server.scheme=http"
+
+  traefik:
+    hostname: traefik
+    image: traefik:v2.2
+    container_name: traefik
+    restart: always
+    ports:
+      - "80:80"
+      - "8080:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    command: --providers.docker.exposedByDefault=false --providers.docker=true --api.insecure=true
