@@ -73,3 +73,116 @@ mix phx.server
 ```
 
 Built in Dashboard: http://localhost:4000/dashboard
+
+
+## 3. Project deployment
+
+### 3.1. Setting up the release
+
+We can prepare the release by:
+
+```elixir
+# Generate release boot scripts
+mix release.init
+
+# Initial setup
+mix deps.get --only prod
+MIX_ENV=prod mix compile
+
+# Install / update  JavaScript dependencies
+npm install --prefix ./assets
+
+# Compile assets
+npm run deploy --prefix ./assets
+mix phx.digest
+```
+
+Next, we need to create `config/releases.exs` file as primary release configuration file.
+
+### 3.2. Running a release
+
+After we do that, we can generate the release with:
+
+```elixir
+MIX_ENV=prod mix release
+```
+
+We can run it with:
+
+```elixir
+export SECRET_KEY_BASE=`mix phx.gen.secret`
+_build/prod/rel/pointing_poker/bin/pointing_poker start
+```
+
+### 3.3. Building docker image
+
+Place `Dockerfile` that you can find next to this `README.md` in you project's root.
+
+```elixir
+docker build . -t pointing_poker:latest
+```
+
+We can try to run the container by:
+
+```elixir
+docker run -e SECRET_KEY_BASE=`mix phx.gen.secret` -p 8080:4000 -it pointing_poker:latest
+```
+
+### 3.4. docker-compose.yml
+
+### 3.5. Using distributed registry
+
+Add the following to project dependencies:
+
+```elixir
+{:syn, "~> 2.1"}
+```
+
+Next, we need to replace `Registry` with `:syn`.
+
+### 3.6. Adding auto-discovery
+
+Add the following to project dependencies:
+
+```elixir
+{:libcluster, "~> 3.2"}
+```
+
+Add to Application supervisor:
+
+```elixir
+{Cluster.Supervisor, [cluster_config(), [name: PointingPoker.ClusterSupervisor]]}
+
+
+# With the following function definition:
+defp cluster_config() do
+    [
+      gossip: [
+        strategy: Cluster.Strategy.Gossip,
+        config: [
+          port: 45892,
+          if_addr: "0.0.0.0",
+          multicast_addr: "230.1.1.251",
+          multicast_ttl: 1
+        ]
+      ]
+    ]
+  end
+```
+
+### 3.7. Configure ERTS to use deterministic ports
+
+In `rel/vm.args.eex`:
+
+```erlang
+-kernel inet_dist_listen_min 4370
+-kernel inet_dist_listen_max 4370
+```
+
+In `rel/env.sh/eex`:
+
+```bash
+export RELEASE_DISTRIBUTION=name
+export RELEASE_NODE=<%= @release.name %>@`hostname -i`
+```
+
